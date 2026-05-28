@@ -409,6 +409,64 @@ def cmd_openclaude(args):
                 )
                 print("💾 结果已保存到共享记忆")
 
+
+def cmd_provider(args):
+    """Provider 管理命令"""
+    from provider_manager import ProviderManager
+    
+    manager = ProviderManager()
+    
+    if args.provider_action == "add":
+        provider = manager.add(
+            name=args.name,
+            base_url=args.base_url,
+            api_key=args.api_key,
+            model=args.model,
+            description=args.description or ""
+        )
+        print(f"✅ Provider 已添加: {args.name}")
+        print(f"   Base URL: {provider['base_url']}")
+        print(f"   Model: {provider['model']}")
+    
+    elif args.provider_action == "remove":
+        if manager.remove(args.name):
+            print(f"✅ Provider 已删除: {args.name}")
+        else:
+            print(f"❌ Provider 不存在: {args.name}")
+    
+    elif args.provider_action == "list":
+        providers = manager.list()
+        default = manager.get_default()
+        if providers:
+            print(f"📋 Provider 列表 ({len(providers)} 个):\n")
+            for name in providers:
+                provider = manager.get(name)
+                is_default = " (默认)" if name == default else ""
+                print(f"  • {name}{is_default}")
+                print(f"    URL: {provider['base_url']}")
+                print(f"    Model: {provider['model']}")
+                print()
+        else:
+            print("📭 没有配置 provider")
+            print("\n添加示例:")
+            print('  python cli.py provider add openai --base-url https://api.openai.com/v1 --api-key sk-xxx --model gpt-4o')
+    
+    elif args.provider_action == "use":
+        if manager.set_default(args.name):
+            print(f"✅ 默认 provider 已设为: {args.name}")
+        else:
+            print(f"❌ Provider 不存在: {args.name}")
+    
+    elif args.provider_action == "test":
+        result = manager.test_connection(args.name)
+        if result["success"]:
+            print(f"✅ 连接测试成功")
+            print(f"   Provider: {result['provider']}")
+            print(f"   URL: {result['base_url']}")
+            print(f"   Model: {result['model']}")
+        else:
+            print(f"❌ 连接测试失败: {result['error']}")
+
 def main():
     parser = argparse.ArgumentParser(
         description="Claude Code Toolkit — 统一 CLI",
@@ -588,6 +646,33 @@ def main():
     task_parser.add_argument("--host", default="localhost", help="服务器地址")
     task_parser.add_argument("--port", type=int, default=50051, help="服务器端口")
     
+    # ── provider 命令 ──
+    provider_parser = subparsers.add_parser("provider", help="Provider 管理")
+    provider_subparsers = provider_parser.add_subparsers(dest="provider_action")
+    
+    # provider add
+    add_parser = provider_subparsers.add_parser("add", help="添加 provider")
+    add_parser.add_argument("name", help="Provider 名称")
+    add_parser.add_argument("--base-url", required=True, help="API 基础 URL")
+    add_parser.add_argument("--api-key", required=True, help="API 密钥")
+    add_parser.add_argument("--model", required=True, help="模型名称")
+    add_parser.add_argument("--description", default="", help="描述")
+    
+    # provider remove
+    remove_parser = provider_subparsers.add_parser("remove", help="删除 provider")
+    remove_parser.add_argument("name", help="Provider 名称")
+    
+    # provider list
+    provider_subparsers.add_parser("list", help="列出所有 provider")
+    
+    # provider use
+    use_parser = provider_subparsers.add_parser("use", help="设置默认 provider")
+    use_parser.add_argument("name", help="Provider 名称")
+    
+    # provider test
+    test_parser = provider_subparsers.add_parser("test", help="测试连接")
+    test_parser.add_argument("name", nargs="?", help="Provider 名称")
+    
     args = parser.parse_args()
     
     if args.command == "memory":
@@ -604,6 +689,8 @@ def main():
         cmd_setup(args)
     elif args.command == "openclaude":
         cmd_openclaude(args)
+    elif args.command == "provider":
+        cmd_provider(args)
     else:
         parser.print_help()
 
