@@ -41,6 +41,10 @@ desktop.ini
 # Secrets (DO NOT COMMIT!)
 .bridge_secret
 .bridge_config.json
+.providers.json
+.sessions.json
+.agents.json
+.tasks.json
 *.key
 *.pem
 
