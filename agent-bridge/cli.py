@@ -1,0 +1,501 @@
+"""
+Claude Code Toolkit — 统一 CLI 入口
+
+一站式命令行工具，整合所有功能：
+  - memory: 记忆管理（语义搜索、保存、统计）
+  - task: 任务调度（创建、列表、更新、自动分配）
+  - bridge: 跨机通信（发送、接收、同步）
+  - mcp: MCP 服务器管理
+  - status: 系统状态
+
+使用方式：
+  python cli.py memory search "3DGS 实验参数"
+  python cli.py memory save "PSNR=25.8, densification=0.005"
+  python cli.py task create "跑实验" --priority high
+  python cli.py task list
+  python cli.py bridge send "Hello from Machine A"
+  python cli.py status
+"""
+
+import argparse
+import json
+import sys
+from pathlib import Path
+
+# 添加当前目录到路径
+sys.path.insert(0, str(Path(__file__).parent))
+
+
+def cmd_memory(args):
+    """记忆管理命令"""
+    from smart_memory import SmartMemory
+    
+    memory = SmartMemory()
+    
+    if args.memory_action == "search":
+        results = memory.recall(args.query, top_k=args.top_k, category=args.category)
+        if results:
+            print(f"🔍 找到 {len(results)} 条相关记忆:\n")
+            for i, r in enumerate(results, 1):
+                print(f"{i}. [相似度: {r['similarity']}] {r['text']}")
+                print(f"   分类: {r['category']} | 访问: {r['access_count']}次")
+                print()
+        else:
+            print("❌ 未找到相关记忆")
+    
+    elif args.memory_action == "save":
+        result = memory.remember(args.text, category=args.category, tags=args.tags or [])
+        print(f"✅ 记忆已保存 (ID: {result['id']})")
+        print(f"   内容: {result['text'][:50]}...")
+        print(f"   分类: {result['category']}")
+    
+    elif args.memory_action == "stats":
+        stats = memory.stats()
+        print("📊 记忆库统计:\n")
+        print(f"  记忆条目: {stats['total_memories']}")
+        print(f"  Bug 解决方案: {stats['total_bugs']}")
+        print(f"  技术决策: {stats['total_decisions']}")
+        print(f"  实验记录: {stats['total_experiments']}")
+        print(f"  存储大小: {stats['memory_size_kb']:.2f} KB")
+        print(f"\n  分类分布:")
+        for cat, count in stats['categories'].items():
+            print(f"    {cat}: {count}")
+    
+    elif args.memory_action == "export":
+        markdown = memory.export_markdown()
+        print(markdown)
+    
+    elif args.memory_action == "bug":
+        if args.bug_action == "add":
+            result = memory.add_bug_solution(args.problem, args.solution, args.context, args.tags)
+            print(f"✅ Bug 解决方案已记录 (ID: {result['id']})")
+        elif args.bug_action == "find":
+            results = memory.find_bug_solution(args.query, args.top_k)
+            if results:
+                print(f"🔍 找到 {len(results)} 个相似问题:\n")
+                for i, r in enumerate(results, 1):
+                    print(f"{i}. [相似度: {r['similarity']}] {r['problem']}")
+                    print(f"   解决方案: {r['solution']}")
+                    print(f"   使用次数: {r.get('usage_count', 0)}")
+                    print()
+            else:
+                print("❌ 未找到相似问题")
+    
+    elif args.memory_action == "experiment":
+        if args.exp_action == "add":
+            params = json.loads(args.params)
+            results = json.loads(args.results)
+            result = memory.add_experiment(args.name, params, results, args.conclusion)
+            print(f"✅ 实验记录已保存 (ID: {result['id']})")
+        elif args.exp_action == "find":
+            results = memory.find_experiment(args.query, args.top_k)
+            if results:
+                print(f"🔍 找到 {len(results)} 个相关实验:\n")
+                for i, r in enumerate(results, 1):
+                    print(f"{i}. [相似度: {r['similarity']}] {r['name']}")
+                    print(f"   参数: {json.dumps(r['params'], ensure_ascii=False)}")
+                    print(f"   结果: {json.dumps(r['results'], ensure_ascii=False)}")
+                    print()
+            else:
+                print("❌ 未找到相关实验")
+
+
+def cmd_task(args):
+    """任务调度命令"""
+    from task_scheduler import TaskScheduler
+    
+    scheduler = TaskScheduler()
+    
+    if args.task_action == "create":
+        task = scheduler.create_task(
+            title=args.title,
+            description=args.description or "",
+            priority=args.priority,
+            assignee=args.assignee,
+            tags=args.tags or [],
+            depends_on=args.depends,
+            timeout_hours=args.timeout
+        )
+        print(f"✅ 任务已创建 (ID: {task['id']})")
+        print(f"   标题: {task['title']}")
+        print(f"   优先级: {task['priority']}")
+        if task.get("assignee"):
+            print(f"   指派: {task['assignee']}")
+    
+    elif args.task_action == "list":
+        tasks = scheduler.list_tasks(
+            status=args.status,
+            assignee=args.assignee,
+            priority=args.priority,
+            tag=args.tag
+        )
+        if tasks:
+            print(f"📋 任务列表 ({len(tasks)} 个):\n")
+            for task in tasks:
+                priority_icon = {"urgent": "🔴", "high": "🟠", "medium": "🟡", "low": "🟢"}
+                icon = priority_icon.get(task.get("priority", "medium"), "⚪")
+                status_icon = {"pending": "⏳", "in_progress": "🔄", "done": "✅", "failed": "❌"}
+                s_icon = status_icon.get(task["status"], "❓")
+                
+                print(f"  {s_icon} {icon} [{task['id']}] {task['title']}")
+                if task.get("assignee"):
+                    print(f"     指派: {task['assignee']}")
+                print()
+        else:
+            print("📭 没有找到任务")
+    
+    elif args.task_action == "update":
+        task = scheduler.update_task(
+            task_id=args.task_id,
+            status=args.status,
+            result=args.result,
+            assignee=args.assignee
+        )
+        print(f"✅ 任务已更新: {task['title']}")
+        print(f"   状态: {task['status']}")
+    
+    elif args.task_action == "assign":
+        task = scheduler.update_task(args.task_id, assignee=args.agent_id)
+        print(f"✅ 任务已分配: {task['title']} → {args.agent_id}")
+    
+    elif args.task_action == "auto-assign":
+        task = scheduler.auto_assign(args.task_id)
+        if task.get("assignee"):
+            print(f"✅ 自动分配: {task['title']} → {task['assignee']}")
+        else:
+            print("⚠️ 没有可用的 Agent")
+    
+    elif args.task_action == "stats":
+        stats = scheduler.get_stats()
+        print("📊 任务统计:\n")
+        print(f"  总任务数: {stats['total']}")
+        print(f"  完成率: {stats['completion_rate']}%")
+        print(f"  平均耗时: {stats['avg_duration_minutes']} 分钟")
+        print(f"  注册 Agent: {stats['agents']} 个")
+        print(f"\n  按状态:")
+        for status, count in stats.get("by_status", {}).items():
+            print(f"    {status}: {count}")
+        print(f"\n  按优先级:")
+        for priority, count in stats.get("by_priority", {}).items():
+            print(f"    {priority}: {count}")
+    
+    elif args.task_action == "export":
+        markdown = scheduler.export_markdown()
+        print(markdown)
+    
+    elif args.task_action == "ready":
+        tasks = scheduler.get_ready_tasks()
+        if tasks:
+            print(f"🚀 可执行任务 ({len(tasks)} 个):\n")
+            for task in tasks:
+                print(f"  [{task['id']}] {task['title']} ({task['priority']})")
+        else:
+            print("📭 没有可执行的任务")
+    
+    elif args.task_action == "register":
+        scheduler.register_agent(args.agent_id, args.capabilities or [])
+        print(f"✅ Agent 已注册: {args.agent_id}")
+
+
+def cmd_bridge(args):
+    """跨机通信命令"""
+    from bridge import get_config, send_message, recv_messages, sync_file, get_status
+    
+    config = get_config()
+    
+    if args.bridge_action == "send":
+        send_message(args.message, config)
+        print(f"✅ 消息已发送")
+    
+    elif args.bridge_action == "recv":
+        messages = recv_messages(config, limit=args.limit)
+        if messages:
+            print(f"📨 收到 {len(messages)} 条消息:\n")
+            for msg in messages:
+                print(f"  [{msg.get('timestamp', '?')}] {msg.get('from', '?')}: {msg.get('text', '')}")
+        else:
+            print("📭 没有新消息")
+    
+    elif args.bridge_action == "sync":
+        sync_file(args.filename, config)
+        print(f"✅ 文件已同步: {args.filename}")
+    
+    elif args.bridge_action == "status":
+        status = get_status(config)
+        print("🔗 连接状态:\n")
+        print(f"  Agent ID: {status.get('agent_id', '?')}")
+        print(f"  状态: {status.get('status', '?')}")
+        print(f"  对等节点: {status.get('peer', '未连接')}")
+        print(f"  消息队列: {status.get('queue_size', 0)} 条")
+
+
+def cmd_mcp(args):
+    """MCP 服务器命令"""
+    if args.mcp_action == "start":
+        print("🚀 启动 MCP 服务器...")
+        print("   在 Claude Code 的 MCP 配置中添加:")
+        print('   {')
+        print('     "mcpServers": {')
+        print('       "claude-toolkit": {')
+        print('         "command": "python",')
+        print(f'         "args": ["{Path(__file__).parent / "mcp_server.py"}"]')
+        print('       }')
+        print('     }')
+        print('   }')
+        print()
+        print("   然后重启 Claude Code 即可使用 MCP 工具")
+    
+    elif args.mcp_action == "test":
+        print("🧪 测试 MCP 服务器...")
+        from mcp_server import MCPServer
+        import asyncio
+        
+        async def test():
+            server = MCPServer()
+            
+            # 测试初始化
+            response = await server.handle_request({
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "initialize",
+                "params": {}
+            })
+            print(f"  初始化: {'✅' if 'result' in response else '❌'}")
+            
+            # 测试工具列表
+            response = await server.handle_request({
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "tools/list",
+                "params": {}
+            })
+            tools = response.get("result", {}).get("tools", [])
+            print(f"  工具数量: {len(tools)}")
+            
+            # 测试记忆搜索
+            response = await server.handle_request({
+                "jsonrpc": "2.0",
+                "id": 3,
+                "method": "tools/call",
+                "params": {
+                    "name": "memory_search",
+                    "arguments": {"query": "test", "top_k": 1}
+                }
+            })
+            print(f"  记忆搜索: {'✅' if 'result' in response else '❌'}")
+            
+            print("\n✅ MCP 服务器测试通过")
+        
+        asyncio.run(test())
+
+
+def cmd_status(args):
+    """系统状态命令"""
+    from smart_memory import SmartMemory
+    from task_scheduler import TaskScheduler
+    
+    memory = SmartMemory()
+    task_scheduler = TaskScheduler()
+    
+    mem_stats = memory.stats()
+    task_stats = task_scheduler.get_stats()
+    
+    print("🤖 Claude Code Toolkit 状态:\n")
+    print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+    print()
+    print("  📚 记忆库:")
+    print(f"     条目: {mem_stats['total_memories']}")
+    print(f"     Bug 解决方案: {mem_stats['total_bugs']}")
+    print(f"     技术决策: {mem_stats['total_decisions']}")
+    print(f"     实验记录: {mem_stats['total_experiments']}")
+    print(f"     大小: {mem_stats['memory_size_kb']:.1f} KB")
+    print()
+    print("  📋 任务队列:")
+    print(f"     总数: {task_stats['total']}")
+    print(f"     完成率: {task_stats['completion_rate']}%")
+    print(f"     平均耗时: {task_stats['avg_duration_minutes']} 分钟")
+    print(f"     注册 Agent: {task_stats['agents']} 个")
+    print()
+    
+    # 检查共享内存目录
+    shared_dir = Path.home() / ".shared-memory"
+    if shared_dir.exists():
+        files = list(shared_dir.glob("*.md"))
+        print(f"  📁 共享内存: {len(files)} 个文件")
+        for f in files:
+            print(f"     - {f.name}")
+    else:
+        print("  📁 共享内存: 未初始化")
+    
+    print()
+    print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Claude Code Toolkit — 统一 CLI",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+示例:
+  %(prog)s memory search "3DGS 实验参数"
+  %(prog)s memory save "PSNR=25.8"
+  %(prog)s task create "跑实验" --priority high
+  %(prog)s task list
+  %(prog)s bridge send "Hello"
+  %(prog)s status
+        """
+    )
+    
+    subparsers = parser.add_subparsers(dest="command")
+    
+    # ── memory 命令 ──
+    memory_parser = subparsers.add_parser("memory", help="记忆管理")
+    memory_subparsers = memory_parser.add_subparsers(dest="memory_action")
+    
+    # memory search
+    search_parser = memory_subparsers.add_parser("search", help="语义搜索记忆")
+    search_parser.add_argument("query", help="搜索关键词")
+    search_parser.add_argument("--top-k", "-k", type=int, default=5, help="返回数量")
+    search_parser.add_argument("--category", "-c", help="按分类过滤")
+    
+    # memory save
+    save_parser = memory_subparsers.add_parser("save", help="保存记忆")
+    save_parser.add_argument("text", help="记忆内容")
+    save_parser.add_argument("--category", "-c", default="general", help="分类")
+    save_parser.add_argument("--tags", "-t", nargs="*", help="标签")
+    
+    # memory stats
+    memory_subparsers.add_parser("stats", help="查看统计")
+    
+    # memory export
+    memory_subparsers.add_parser("export", help="导出 Markdown")
+    
+    # memory bug
+    bug_parser = memory_subparsers.add_parser("bug", help="Bug 解决方案")
+    bug_subparsers = bug_parser.add_subparsers(dest="bug_action")
+    
+    bug_add = bug_subparsers.add_parser("add", help="添加解决方案")
+    bug_add.add_argument("problem", help="问题描述")
+    bug_add.add_argument("solution", help="解决方案")
+    bug_add.add_argument("--context", default="", help="上下文")
+    bug_add.add_argument("--tags", nargs="*", help="标签")
+    
+    bug_find = bug_subparsers.add_parser("find", help="查找解决方案")
+    bug_find.add_argument("query", help="查询问题")
+    bug_find.add_argument("--top-k", "-k", type=int, default=3, help="返回数量")
+    
+    # memory experiment
+    exp_parser = memory_subparsers.add_parser("experiment", help="实验记录")
+    exp_subparsers = exp_parser.add_subparsers(dest="exp_action")
+    
+    exp_add = exp_subparsers.add_parser("add", help="添加实验")
+    exp_add.add_argument("name", help="实验名称")
+    exp_add.add_argument("--params", "-p", required=True, help="参数 (JSON)")
+    exp_add.add_argument("--results", "-r", required=True, help="结果 (JSON)")
+    exp_add.add_argument("--conclusion", "-c", default="", help="结论")
+    
+    exp_find = exp_subparsers.add_parser("find", help="查找实验")
+    exp_find.add_argument("query", help="查询内容")
+    exp_find.add_argument("--top-k", "-k", type=int, default=3, help="返回数量")
+    
+    # ── task 命令 ──
+    task_parser = subparsers.add_parser("task", help="任务调度")
+    task_subparsers = task_parser.add_subparsers(dest="task_action")
+    
+    # task create
+    create_parser = task_subparsers.add_parser("create", help="创建任务")
+    create_parser.add_argument("title", help="任务标题")
+    create_parser.add_argument("--description", "-d", default="", help="详细描述")
+    create_parser.add_argument("--priority", "-p", default="medium",
+                               choices=["low", "medium", "high", "urgent"], help="优先级")
+    create_parser.add_argument("--assignee", "-a", help="指派给谁")
+    create_parser.add_argument("--tags", "-t", nargs="*", help="标签")
+    create_parser.add_argument("--depends", nargs="*", help="依赖的任务 ID")
+    create_parser.add_argument("--timeout", type=int, help="超时时间（小时）")
+    
+    # task list
+    list_parser = task_subparsers.add_parser("list", help="列出任务")
+    list_parser.add_argument("--status", "-s", default="all",
+                             choices=["pending", "in_progress", "done", "failed", "all"])
+    list_parser.add_argument("--assignee", "-a", help="按指派人过滤")
+    list_parser.add_argument("--priority", "-p", help="按优先级过滤")
+    list_parser.add_argument("--tag", help="按标签过滤")
+    
+    # task update
+    update_parser = task_subparsers.add_parser("update", help="更新任务")
+    update_parser.add_argument("task_id", help="任务 ID")
+    update_parser.add_argument("--status", "-s",
+                               choices=["pending", "in_progress", "done", "failed"])
+    update_parser.add_argument("--result", "-r", help="任务结果")
+    update_parser.add_argument("--assignee", "-a", help="重新指派")
+    
+    # task assign
+    assign_parser = task_subparsers.add_parser("assign", help="分配任务")
+    assign_parser.add_argument("task_id", help="任务 ID")
+    assign_parser.add_argument("agent_id", help="Agent ID")
+    
+    # task auto-assign
+    auto_parser = task_subparsers.add_parser("auto-assign", help="自动分配任务")
+    auto_parser.add_argument("task_id", help="任务 ID")
+    
+    # task stats
+    task_subparsers.add_parser("stats", help="查看统计")
+    
+    # task export
+    task_subparsers.add_parser("export", help="导出为 Markdown")
+    
+    # task ready
+    task_subparsers.add_parser("ready", help="查看可执行任务")
+    
+    # task register
+    reg_parser = task_subparsers.add_parser("register", help="注册 Agent")
+    reg_parser.add_argument("agent_id", help="Agent ID")
+    reg_parser.add_argument("--capabilities", "-c", nargs="*", help="能力列表")
+    
+    # ── bridge 命令 ──
+    bridge_parser = subparsers.add_parser("bridge", help="跨机通信")
+    bridge_subparsers = bridge_parser.add_subparsers(dest="bridge_action")
+    
+    # bridge send
+    send_parser = bridge_subparsers.add_parser("send", help="发送消息")
+    send_parser.add_argument("message", help="消息内容")
+    
+    # bridge recv
+    recv_parser = bridge_subparsers.add_parser("recv", help="接收消息")
+    recv_parser.add_argument("--limit", "-l", type=int, default=10, help="最多返回几条")
+    
+    # bridge sync
+    sync_parser = bridge_subparsers.add_parser("sync", help="同步文件")
+    sync_parser.add_argument("filename", help="文件名")
+    
+    # bridge status
+    bridge_subparsers.add_parser("status", help="查看连接状态")
+    
+    # ── mcp 命令 ──
+    mcp_parser = subparsers.add_parser("mcp", help="MCP 服务器管理")
+    mcp_subparsers = mcp_parser.add_subparsers(dest="mcp_action")
+    
+    mcp_subparsers.add_parser("start", help="启动 MCP 服务器")
+    mcp_subparsers.add_parser("test", help="测试 MCP 服务器")
+    
+    # ── status 命令 ──
+    subparsers.add_parser("status", help="系统状态")
+    
+    args = parser.parse_args()
+    
+    if args.command == "memory":
+        cmd_memory(args)
+    elif args.command == "task":
+        cmd_task(args)
+    elif args.command == "bridge":
+        cmd_bridge(args)
+    elif args.command == "mcp":
+        cmd_mcp(args)
+    elif args.command == "status":
+        cmd_status(args)
+    else:
+        parser.print_help()
+
+
+if __name__ == "__main__":
+    main()
