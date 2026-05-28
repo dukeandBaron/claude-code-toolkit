@@ -564,6 +564,42 @@ def cmd_session(args):
         print(f"  活跃会话: {stats['active_session'] or '无'}")
 
 
+def cmd_notify(args):
+    """通知管理命令"""
+    from notify_manager import NotificationManager
+    
+    manager = NotificationManager()
+    
+    if args.notify_action == "send":
+        results = manager.send(
+            message=args.message,
+            source=args.source,
+            session_id=args.session_id,
+            channels=args.channels,
+            force=args.force
+        )
+        if results:
+            print(f"📤 通知已发送:")
+            for r in results:
+                status = "✅" if r["success"] else "❌"
+                print(f"  {status} {r['channel']}")
+    
+    elif args.notify_action == "test":
+        manager.test_channel(args.channel)
+    
+    elif args.notify_action == "config":
+        if args.show:
+            manager.show_config()
+        elif args.enable:
+            manager.config["channels"][args.enable]["enabled"] = True
+            manager._save_config()
+            print(f"✅ 已启用: {args.enable}")
+        elif args.disable:
+            manager.config["channels"][args.disable]["enabled"] = False
+            manager._save_config()
+            print(f"✅ 已禁用: {args.disable}")
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Claude Code Toolkit — 统一 CLI",
@@ -825,6 +861,28 @@ def main():
     # session stats
     session_subparsers.add_parser("stats", help="查看统计")
     
+    # ── notify 命令 ──
+    notify_parser = subparsers.add_parser("notify", help="通知管理")
+    notify_subparsers = notify_parser.add_subparsers(dest="notify_action")
+    
+    # notify send
+    send_parser = notify_subparsers.add_parser("send", help="发送通知")
+    send_parser.add_argument("message", help="通知内容")
+    send_parser.add_argument("--source", "-s", default="claude", help="来源")
+    send_parser.add_argument("--session-id", help="会话 ID")
+    send_parser.add_argument("--channels", "-c", nargs="*", help="指定渠道")
+    send_parser.add_argument("--force", "-f", action="store_true", help="强制发送")
+    
+    # notify test
+    test_parser = notify_subparsers.add_parser("test", help="测试渠道")
+    test_parser.add_argument("channel", help="渠道名称")
+    
+    # notify config
+    config_parser = notify_subparsers.add_parser("config", help="配置管理")
+    config_parser.add_argument("--show", action="store_true", help="显示配置")
+    config_parser.add_argument("--enable", help="启用渠道")
+    config_parser.add_argument("--disable", help="禁用渠道")
+    
     args = parser.parse_args()
     
     if args.command == "memory":
@@ -845,6 +903,8 @@ def main():
         cmd_provider(args)
     elif args.command == "session":
         cmd_session(args)
+    elif args.command == "notify":
+        cmd_notify(args)
     else:
         parser.print_help()
 
