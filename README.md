@@ -15,7 +15,7 @@
 
 ## 怎么解决？
 
-一个工具包，六个模块：
+一个工具包，七个模块：
 
 ```
 ┌─────────────────────────────────────────────────────┐
@@ -27,6 +27,7 @@
 │  🔌 MCP Server      Claude Code 官方协议             │
 │  🔑 Provider Mgr    多后端 LLM 配置管理              │
 │  💬 Session Mgr     跨调用会话持久化                  │
+│  🔔 Notify Mgr      智能任务完成通知                  │
 │                                                     │
 ├──────────────┬──────────────────────────────────────┤
 │  机器 A       │  机器 B                              │
@@ -144,7 +145,35 @@ python agent-bridge/cli.py session history <session_id>
 python agent-bridge/cli.py session search "3DGS"
 ```
 
-### 6. MCP 集成
+### 6. 智能通知
+
+```bash
+# 发送通知（自动选择启用的渠道）
+python agent-bridge/cli.py notify send "任务完成" --source claude
+
+# 测试通知渠道
+python agent-bridge/cli.py notify test console
+
+# 查看配置
+python agent-bridge/cli.py notify config --show
+
+# 启用 Webhook（飞书/钉钉/企微）
+python agent-bridge/cli.py notify config --enable webhook
+```
+
+**智能去抖**：
+- 有工具调用：60秒静默后通知
+- 无工具调用：15秒静默后通知
+- 去重窗口：2分钟内不重复通知
+
+**支持渠道**：
+- Webhook（飞书/钉钉/企微）
+- Telegram Bot
+- Email (SMTP)
+- 桌面通知
+- 控制台通知
+
+### 7. MCP 集成
 
 在 Claude Code 配置中添加：
 
@@ -203,6 +232,7 @@ Session 2: 搜索 "3DGS 参数"，立刻召回，不用重新解释
 - [x] MCP 集成
 - [x] Provider 管理（多后端 LLM）
 - [x] Session 管理（跨调用持久化）
+- [x] 智能通知（多通道 + 去抖）
 - [ ] 集成 OpenClaude API
 - [ ] Web UI
 - [ ] VS Code 扩展
