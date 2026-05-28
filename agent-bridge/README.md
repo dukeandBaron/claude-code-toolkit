@@ -26,26 +26,26 @@ Claude Code 直接读写文件即可。bridge.py 只负责消息收发。
 
 ```bash
 # Claude Code 在终端执行：
-python D:/blender_render/agent-bridge/bridge.py send "3DGS truck 跑完了，PSNR=25.80"
-python D:/blender_render/agent-bridge/bridge.py recv
-python D:/blender_render/agent-bridge/bridge.py status
+python agent-bridge/bridge.py send "3DGS truck 跑完了，PSNR=25.80"
+python agent-bridge/bridge.py recv
+python agent-bridge/bridge.py status
 ```
 
 ### 方式 2：网络模式（实时同步）
 
 ```bash
 # 你的电脑：启动后台同步
-python D:/blender_render/agent-bridge/bridge.py start
+python agent-bridge/bridge.py start
 
 # 对方电脑：连接你的 IP
-python D:/blender_render/agent-bridge/bridge.py connect 192.168.1.50:9527
-python D:/blender_render/agent-bridge/bridge.py start
+python agent-bridge/bridge.py connect 192.168.1.50:9527
+python agent-bridge/bridge.py start
 ```
 
 ### 方式 3：LAN 自动发现
 
 ```bash
-python D:/blender_render/agent-bridge/bridge.py discover
+python agent-bridge/bridge.py discover
 ```
 
 ## 完整命令参考
@@ -67,9 +67,9 @@ python bridge.py connect 192.168.1.50:9527 # 配置对端地址
 
 ```markdown
 ## 跨机器通信
-- 发送消息：`python D:/blender_render/agent-bridge/bridge.py send "内容"`
-- 读取消息：`python D:/blender_render/agent-bridge/bridge.py recv`
-- 查看状态：`python D:/blender_render/agent-bridge/bridge.py status`
+- 发送消息：`python agent-bridge/bridge.py send "内容"`
+- 读取消息：`python agent-bridge/bridge.py recv`
+- 查看状态：`python agent-bridge/bridge.py status`
 - 收到新消息时自动读取并回复
 ```
 
