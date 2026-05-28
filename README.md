@@ -1,157 +1,120 @@
-# 🤖 Claude Code Toolkit
+# Claude Code Toolkit
 
-### **The Missing Layer for Multi-Agent Claude Code Workflows**
-
-> **Zero dependencies. 60 seconds setup. 100% local.**
+> **轻量级 Claude Code 协作工具** — 零依赖、60秒上手、100%本地
 
 ---
 
-## 😩 The Problem
+## 解决什么问题？
 
-You're running Claude Code on multiple machines. Every session starts from zero:
+你用 Claude Code 跨机器工作，每次新会话都要重新解释上下文：
 
-- ❌ **Memory is isolated** — Machine A doesn't know what Machine B learned yesterday
-- ❌ **No communication** — Two Claude Code instances can't talk to each other
-- ❌ **No task coordination** — Can't assign work across machines
-- ❌ **Token waste** — Re-explaining context every session costs $$$
+- 记忆不共享 — 机器 A 学到的东西，机器 B 不知道
+- 没法通信 — 两个 Claude Code 实例各干各的
+- 任务靠手动 — Markdown 文件复制粘贴
+- Token 浪费 — 重复解释 = 白花钱
 
-**You're paying for AI compute, but wasting it on redundant context loading.**
+## 怎么解决？
 
----
-
-## ✅ The Solution
-
-**One toolkit. Four problems solved.**
+一个工具包，四个模块：
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                    SHARED MEMORY HUB                             │
-│                   ~/.shared-memory/                              │
-│                                                                  │
-│  🧠 Smart Memory      ← Semantic search (TF-IDF)                │
-│  📋 Task Scheduler    ← Priority queue + auto-assign             │
-│  🤝 Agent Bridge      ← Real-time WebSocket communication        │
-│  🔌 MCP Server        ← Official Claude Code protocol            │
-│                                                                  │
-├─────────────┬─────────────────┬──────────────────────────────────┤
-│             │                 │                                   │
-│  🖥️ Machine A  │   🖥️ Machine B   │   📱 Phone/Tablet               │
-│  Claude Code  │   Claude Code   │   Remote Control                │
-│             │                 │                                   │
-│  ↕️ MCP + WS   │   ↕️ MCP + WS   │   ↕️ Monitor & Assign            │
-└─────────────┴─────────────────┴──────────────────────────────────┘
+┌─────────────────────────────────────────────────────┐
+│              ~/.shared-memory/                       │
+│                                                     │
+│  🧠 Smart Memory    TF-IDF 语义搜索                  │
+│  📋 Task Scheduler  优先级队列 + 自动分配             │
+│  🤝 Agent Bridge    WebSocket 跨机通信               │
+│  🔌 MCP Server      Claude Code 官方协议             │
+│                                                     │
+├──────────────┬──────────────────────────────────────┤
+│  机器 A       │  机器 B                              │
+│  Claude Code  │  Claude Code                        │
+│  ↕ 共享记忆    │  ↕ 共享记忆                          │
+└──────────────┴──────────────────────────────────────┘
 ```
 
----
+## 为什么选我们？
 
-## 🆚 Why This Toolkit?
+市面上有很多多 agent 框架（Ruflo 56k stars、OpenClaude 28k、AgentScope 26k、Strands 6k），它们功能强大但：
 
-| Feature | **This Toolkit** | claude-brain | claude-cortex-memory | Ruflo | ccswarm |
-|---------|-----------------|--------------|----------------------|-------|---------|
-| **Setup Time** | 60 seconds | 5+ min | 5+ min | 10+ min | 10+ min |
-| **Dependencies** | Zero (pure Python) | Node.js | Python + DB | Docker | Docker |
-| **MCP Support** | ✅ Native | ❌ | ❌ | ❌ | ❌ |
-| **Semantic Search** | ✅ TF-IDF | ✅ Vector DB | ✅ Vector DB | ✅ | ✅ |
-| **Task Scheduling** | ✅ Priority queue | ❌ | ❌ | ✅ | ✅ |
-| **Cross-Machine** | ✅ WebSocket | ❌ | ❌ | ✅ | ✅ |
-| **Privacy** | 100% Local | Local | Local | Cloud option | Cloud option |
-| **Cost** | Free | Free | Free | Freemium | Freemium |
+- 需要 Docker / 复杂配置
+- 学习曲线陡峭
+- 偏向"通用框架"，不是专门给 Claude Code 用户的
 
-**Our edge:** We're the only toolkit with **native MCP support** — the official Claude Code protocol. This means zero friction integration and future-proof as Claude Code evolves.
+**我们是"最后一公里"工具**：
 
----
+| | 大框架 (Ruflo/OpenClaude) | 本工具 |
+|---|---|---|
+| 安装 | Docker + 配置文件 | `git clone` + `setup.sh` |
+| 上手时间 | 30分钟+ | 60秒 |
+| 依赖 | Node.js / Python + 多个包 | 零（纯 Python 标准库） |
+| 定位 | 通用多 agent 编排 | Claude Code 专属增强 |
+| 适合 | 团队/企业 | 个人开发者 |
 
-## 🚀 Get Started in 60 Seconds
+**不跟大框架竞争，做轻量补充。**
+
+## 快速开始
 
 ```bash
-# 1. Clone
+# 克隆
 git clone https://github.com/dukeandBaron/claude-code-toolkit.git
 cd claude-code-toolkit
 
-# 2. Setup (Windows/Linux/Mac)
-./setup.sh  # or setup.bat on Windows
+# 初始化（创建共享记忆目录）
+python agent-bridge/cli.py setup
 
-# 3. Start using
+# 开始使用
 python agent-bridge/cli.py status
 ```
 
-**That's it.** No Docker. No API keys. No cloud services. Pure Python.
+## 功能
 
----
-
-## 🎯 What You Get
-
-### 1. **Smart Memory** — Semantic Search Across Sessions
-
-Stop re-explaining your project. Your AI remembers.
+### 1. 语义记忆
 
 ```bash
-# Search memories by meaning, not just keywords
-python agent-bridge/cli.py memory search "3DGS experiment parameters"
+# 保存
+python agent-bridge/cli.py memory save "3DGS truck PSNR=25.8" --category experiment
 
-# Save what you learned
-python agent-bridge/cli.py memory save "PSNR=25.8, densification=0.005" --category experiment
+# 搜索（按语义，不是关键词）
+python agent-bridge/cli.py memory search "3DGS 实验参数"
 
-# Record bug solutions for future reference
-python agent-bridge/cli.py memory bug add "CUDA out of memory" "Reduce batch size to 4"
-
-# Find similar bugs when they recur
-python agent-bridge/cli.py memory bug find "GPU memory error"
+# 记录 Bug 解决方案
+python agent-bridge/cli.py memory bug add "CUDA OOM" "减小 batch size 到 4"
+python agent-bridge/cli.py memory bug find "显存不足"
 ```
 
-**Under the hood:** TF-IDF vectorization with cosine similarity. Zero dependencies, pure Python.
-
-### 2. **Task Scheduler** — Intelligent Work Distribution
-
-Replace manual markdown task lists with smart scheduling.
+### 2. 任务调度
 
 ```bash
-# Create a task with priority
-python agent-bridge/cli.py task create "Run 3DGS experiment" --priority high --assignee claude-pc1
+# 创建任务（带优先级）
+python agent-bridge/cli.py task create "跑 3DGS 实验" --priority high
 
-# See what's ready to execute
+# 查看可执行任务
 python agent-bridge/cli.py task ready
 
-# Auto-assign to the least busy agent
+# 自动分配给最空闲的 agent
 python agent-bridge/cli.py task auto-assign <task_id>
 
-# Mark complete with results
+# 完成任务
 python agent-bridge/cli.py task update <task_id> --status done --result "PSNR=25.8"
-
-# View statistics
-python agent-bridge/cli.py task stats
 ```
 
-**Features:**
-- Priority queue (urgent > high > medium > low)
-- Auto-assignment based on agent load
-- Dependency management (task B waits for task A)
-- Timeout detection (auto-fail stale tasks)
-- Statistics and reporting
-
-### 3. **Agent Bridge** — Real-time Cross-Machine Communication
-
-Two Claude Code instances talking to each other.
+### 3. 跨机通信
 
 ```bash
-# Machine A: Send a message
-python agent-bridge/cli.py bridge send "Experiment complete, PSNR=25.8"
+# 发送消息
+python agent-bridge/cli.py bridge send "实验完成，PSNR=25.8"
 
-# Machine B: Receive messages
+# 接收消息
 python agent-bridge/cli.py bridge recv
 
-# Sync a specific file
+# 同步文件
 python agent-bridge/cli.py bridge sync MEMORY.md
-
-# Check connection status
-python agent-bridge/cli.py bridge status
 ```
 
-**Security:** HMAC-SHA256 authentication. Only machines with the shared secret can communicate.
+### 4. MCP 集成
 
-### 4. **MCP Server** — Official Claude Code Protocol
-
-The first toolkit with native MCP support. Zero-friction integration.
+在 Claude Code 配置中添加：
 
 ```json
 {
@@ -164,108 +127,56 @@ The first toolkit with native MCP support. Zero-friction integration.
 }
 ```
 
-**Available MCP Tools:**
-- `memory_search` — Semantic search across all memories
-- `memory_save` — Save new memories
-- `task_create` — Create intelligent tasks
-- `task_list` — View task queue
-- `task_update` — Update task status
-- `bridge_send` — Send cross-machine messages
-- `bridge_recv` — Receive cross-machine messages
-- `knowledge_query` — Query bug solutions, decisions, experiments
+MCP 工具：
+- `memory_search` — 语义搜索记忆
+- `memory_save` — 保存记忆
+- `task_create` — 创建任务
+- `task_list` — 查看任务
+- `task_update` — 更新任务
+- `bridge_send` / `bridge_recv` — 跨机通信
+- `knowledge_query` — 查询知识库
+
+## 真实用例
+
+**场景 1：个人知识库**
+```
+Session 1: 学习 3DGS，保存关键参数到记忆
+Session 2: 搜索 "3DGS 参数"，立刻召回，不用重新解释
+```
+
+**场景 2：跨机器协作**
+```
+机器 A: 跑完实验，发送结果给机器 B
+机器 B: 收到消息，继续分析
+```
+
+**场景 3：任务管理**
+```
+创建任务 "写论文实验部分"，优先级 high
+系统自动分配给最空闲的 agent
+完成后标记 done，记录结果
+```
+
+## 安全
+
+- 100% 本地，数据不出机器
+- 跨机通信使用 HMAC-SHA256 认证
+- 开源，代码可审计
+
+## 路线图
+
+- [x] 语义记忆（TF-IDF）
+- [x] 任务调度（优先级队列）
+- [x] 跨机通信（WebSocket）
+- [x] MCP 集成
+- [ ] 集成 OpenClaude API
+- [ ] Web UI
+- [ ] VS Code 扩展
+
+## 许可证
+
+MIT License
 
 ---
 
-## 📊 Real-World Use Cases
-
-### Use Case 1: Research Team Collaboration
-```
-Machine A (Researcher): Runs experiment, saves results to shared memory
-Machine B (Analyst): Searches memory for experiment results, generates report
-Machine C (Writer): Queries memory for key findings, writes paper section
-```
-
-### Use Case 2: Multi-Environment Development
-```
-Machine A (Dev): Writes code, creates tasks for testing
-Machine B (Test): Picks up tasks, runs tests, reports results
-Machine A (Dev): Reviews results, marks tasks complete
-```
-
-### Use Case 3: Personal Knowledge Base
-```
-Session 1: Learn about 3DGS, save key insights
-Session 2: Search for "3DGS parameters" — instant recall
-Session 3: Build on previous knowledge without re-explaining
-```
-
----
-
-## 🛡️ Privacy & Security
-
-- **100% Local**: No data leaves your machine unless you explicitly sync
-- **No Cloud**: No accounts, no API keys, no subscriptions
-- **Encrypted Communication**: HMAC-SHA256 for cross-machine messages
-- **Open Source**: Full transparency, audit the code yourself
-
----
-
-## 🔧 Advanced Configuration
-
-### Custom Memory Directory
-```python
-from smart_memory import SmartMemory
-memory = SmartMemory(memory_dir="/path/to/custom/dir")
-```
-
-### Task Dependencies
-```bash
-# Task B depends on Task A
-python agent-bridge/cli.py task create "Analyze results" --depends <task_a_id>
-```
-
-### Agent Registration
-```bash
-# Register an agent with capabilities
-python agent-bridge/cli.py task register claude-pc1 --capabilities "python,gpu,experiment"
-```
-
----
-
-## 📈 Roadmap
-
-- [x] Smart Memory with semantic search
-- [x] Task Scheduler with priority queue
-- [x] Agent Bridge with WebSocket
-- [x] MCP Server (native protocol)
-- [ ] Vector database upgrade (for larger memory stores)
-- [ ] Web UI dashboard
-- [ ] VS Code extension
-- [ ] Cursor/Windsurf integration
-- [ ] Mobile app for remote monitoring
-
----
-
-## 🤝 Contributing
-
-We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-
----
-
-## 📄 License
-
-MIT License — see [LICENSE](LICENSE)
-
----
-
-## 🙏 Acknowledgments
-
-- Claude Code team for the amazing AI coding assistant
-- MCP protocol for standardizing tool integration
-- The open-source community for inspiration
-
----
-
-**Built with ❤️ by developers, for developers.**
-
-[GitHub](https://github.com/dukeandBaron/claude-code-toolkit) | [Issues](https://github.com/dukeandBaron/claude-code-toolkit/issues) | [Discussions](https://github.com/dukeandBaron/claude-code-toolkit/discussions)
+**GitHub**: https://github.com/dukeandBaron/claude-code-toolkit

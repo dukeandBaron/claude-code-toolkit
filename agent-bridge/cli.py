@@ -326,10 +326,52 @@ def cmd_status(args):
             print(f"     - {f.name}")
     else:
         print("  📁 共享内存: 未初始化")
+        print("     运行: python cli.py setup")
     
     print()
     print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
+
+def cmd_setup(args):
+    """初始化共享记忆目录"""
+    shared_dir = Path.home() / ".shared-memory"
+    
+    print("🔧 初始化 Claude Code Toolkit...\n")
+    
+    # 创建目录
+    shared_dir.mkdir(parents=True, exist_ok=True)
+    print(f"  ✅ 创建目录: {shared_dir}")
+    
+    # 创建默认文件
+    files = {
+        "MEMORY.md": "# 共享记忆\n\n> 由 Claude Code Toolkit 自动创建\n",
+        "TASK_QUEUE.md": "# 任务队列\n\n> 状态: pending → in_progress → done / failed\n",
+        "HANDOVER.md": "# 交接区\n\n> 跨机器任务结果传递\n",
+        "ACTIVITY_LOG.md": "# 活动日志\n\n> 格式: [YYYY-MM-DD HH:MM] [工具] 动作\n\n---\n",
+    }
+    
+    for filename, content in files.items():
+        filepath = shared_dir / filename
+        if not filepath.exists():
+            filepath.write_text(content, encoding="utf-8")
+            print(f"  ✅ 创建文件: {filename}")
+        else:
+            print(f"  ⏭️  已存在: {filename}")
+    
+    # 初始化记忆和任务
+    from smart_memory import SmartMemory
+    from task_scheduler import TaskScheduler
+    
+    SmartMemory()
+    TaskScheduler()
+    print(f"  ✅ 初始化记忆库")
+    print(f"  ✅ 初始化任务调度器")
+    
+    print(f"\n🎉 初始化完成！")
+    print(f"\n下一步:")
+    print(f"  python cli.py status          # 查看状态")
+    print(f"  python cli.py memory save \"你的第一条记忆\"")
+    print(f"  python cli.py task create \"你的第一个任务\"")
 
 def main():
     parser = argparse.ArgumentParser(
@@ -481,6 +523,9 @@ def main():
     # ── status 命令 ──
     subparsers.add_parser("status", help="系统状态")
     
+    # ── setup 命令 ──
+    subparsers.add_parser("setup", help="初始化共享记忆目录")
+    
     args = parser.parse_args()
     
     if args.command == "memory":
@@ -493,6 +538,8 @@ def main():
         cmd_mcp(args)
     elif args.command == "status":
         cmd_status(args)
+    elif args.command == "setup":
+        cmd_setup(args)
     else:
         parser.print_help()
 
