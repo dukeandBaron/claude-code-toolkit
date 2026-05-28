@@ -15,7 +15,7 @@
 
 ## 怎么解决？
 
-一个工具包，四个模块：
+一个工具包，六个模块：
 
 ```
 ┌─────────────────────────────────────────────────────┐
@@ -25,6 +25,8 @@
 │  📋 Task Scheduler  优先级队列 + 自动分配             │
 │  🤝 Agent Bridge    WebSocket 跨机通信               │
 │  🔌 MCP Server      Claude Code 官方协议             │
+│  🔑 Provider Mgr    多后端 LLM 配置管理              │
+│  💬 Session Mgr     跨调用会话持久化                  │
 │                                                     │
 ├──────────────┬──────────────────────────────────────┤
 │  机器 A       │  机器 B                              │
@@ -112,7 +114,37 @@ python agent-bridge/cli.py bridge recv
 python agent-bridge/cli.py bridge sync MEMORY.md
 ```
 
-### 4. MCP 集成
+### 4. Provider 管理
+
+```bash
+# 添加 LLM 后端
+python agent-bridge/cli.py provider add openai --base-url https://api.openai.com/v1 --api-key sk-xxx --model gpt-4o
+python agent-bridge/cli.py provider add deepseek --base-url https://api.deepseek.com/v1 --api-key sk-xxx --model deepseek-chat
+
+# 列出所有 provider
+python agent-bridge/cli.py provider list
+
+# 设置默认 provider
+python agent-bridge/cli.py provider use deepseek
+```
+
+### 5. Session 管理
+
+```bash
+# 创建会话
+python agent-bridge/cli.py session create --name "3DGS 实验"
+
+# 添加消息
+python agent-bridge/cli.py session add <session_id> --role user --content "开始实验"
+
+# 查看历史
+python agent-bridge/cli.py session history <session_id>
+
+# 搜索会话
+python agent-bridge/cli.py session search "3DGS"
+```
+
+### 6. MCP 集成
 
 在 Claude Code 配置中添加：
 
@@ -169,6 +201,8 @@ Session 2: 搜索 "3DGS 参数"，立刻召回，不用重新解释
 - [x] 任务调度（优先级队列）
 - [x] 跨机通信（WebSocket）
 - [x] MCP 集成
+- [x] Provider 管理（多后端 LLM）
+- [x] Session 管理（跨调用持久化）
 - [ ] 集成 OpenClaude API
 - [ ] Web UI
 - [ ] VS Code 扩展
