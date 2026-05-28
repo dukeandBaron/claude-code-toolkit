@@ -373,6 +373,42 @@ def cmd_setup(args):
     print(f"  python cli.py memory save \"你的第一条记忆\"")
     print(f"  python cli.py task create \"你的第一个任务\"")
 
+
+def cmd_openclaude(args):
+    """OpenClaude 集成命令"""
+    from openclaude_client import OpenClaudeClient, generate_grpc_client
+    
+    if args.openclaude_action == "generate":
+        generate_grpc_client()
+    
+    elif args.openclaude_action == "test":
+        client = OpenClaudeClient(host=args.host, port=args.port)
+        client.connect()
+    
+    elif args.openclaude_action == "chat":
+        client = OpenClaudeClient(host=args.host, port=args.port)
+        if client.connect():
+            response = client.chat(args.message, args.dir)
+            if response:
+                print(f"📨 响应: {response.get('text', '')}")
+    
+    elif args.openclaude_action == "task":
+        client = OpenClaudeClient(host=args.host, port=args.port)
+        if client.connect():
+            result = client.execute_task(args.description, args.dir)
+            if result and result.get("success"):
+                print(f"✅ 任务完成: {result.get('result', '')}")
+                
+                # 保存到共享记忆
+                from smart_memory import SmartMemory
+                memory = SmartMemory()
+                memory.remember(
+                    f"OpenClaude 任务: {args.description} -> {result.get('result', '')}",
+                    category="openclaude",
+                    tags=["openclaude", "task"]
+                )
+                print("💾 结果已保存到共享记忆")
+
 def main():
     parser = argparse.ArgumentParser(
         description="Claude Code Toolkit — 统一 CLI",
@@ -526,6 +562,32 @@ def main():
     # ── setup 命令 ──
     subparsers.add_parser("setup", help="初始化共享记忆目录")
     
+    # ── openclaude 命令 ──
+    openclaude_parser = subparsers.add_parser("openclaude", help="OpenClaude 集成")
+    openclaude_subparsers = openclaude_parser.add_subparsers(dest="openclaude_action")
+    
+    # openclaude generate
+    openclaude_subparsers.add_parser("generate", help="生成 gRPC 客户端代码")
+    
+    # openclaude test
+    test_parser = openclaude_subparsers.add_parser("test", help="测试连接")
+    test_parser.add_argument("--host", default="localhost", help="服务器地址")
+    test_parser.add_argument("--port", type=int, default=50051, help="服务器端口")
+    
+    # openclaude chat
+    chat_parser = openclaude_subparsers.add_parser("chat", help="发送消息")
+    chat_parser.add_argument("message", help="消息内容")
+    chat_parser.add_argument("--dir", default=".", help="工作目录")
+    chat_parser.add_argument("--host", default="localhost", help="服务器地址")
+    chat_parser.add_argument("--port", type=int, default=50051, help="服务器端口")
+    
+    # openclaude task
+    task_parser = openclaude_subparsers.add_parser("task", help="执行编码任务")
+    task_parser.add_argument("description", help="任务描述")
+    task_parser.add_argument("--dir", default=".", help="工作目录")
+    task_parser.add_argument("--host", default="localhost", help="服务器地址")
+    task_parser.add_argument("--port", type=int, default=50051, help="服务器端口")
+    
     args = parser.parse_args()
     
     if args.command == "memory":
@@ -540,6 +602,8 @@ def main():
         cmd_status(args)
     elif args.command == "setup":
         cmd_setup(args)
+    elif args.command == "openclaude":
+        cmd_openclaude(args)
     else:
         parser.print_help()
 
