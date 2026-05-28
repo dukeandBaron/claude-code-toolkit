@@ -467,6 +467,103 @@ def cmd_provider(args):
         else:
             print(f"❌ 连接测试失败: {result['error']}")
 
+
+def cmd_session(args):
+    """Session 管理命令"""
+    from session_manager import SessionManager
+    
+    manager = SessionManager()
+    
+    if args.session_action == "create":
+        session = manager.create(name=args.name, session_id=args.id)
+        print(f"✅ 会话已创建")
+        print(f"   ID: {session['id']}")
+        print(f"   名称: {session['name']}")
+    
+    elif args.session_action == "list":
+        sessions = manager.list(limit=args.limit)
+        if sessions:
+            print(f"📋 会话列表 ({len(sessions)} 个):\n")
+            for s in sessions:
+                active_mark = " *" if s["is_active"] else ""
+                print(f"  • {s['id']}{active_mark}: {s['name']}")
+                print(f"    消息: {s['message_count']} | 更新: {s['updated_at'][:19]}")
+                print()
+        else:
+            print("📭 没有会话")
+            print("\n创建会话:")
+            print('  python cli.py session create --name "我的会话"')
+    
+    elif args.session_action == "add":
+        message = manager.add_message(args.session_id, args.role, args.content)
+        print(f"✅ 消息已添加")
+        print(f"   会话: {args.session_id}")
+        print(f"   角色: {args.role}")
+    
+    elif args.session_action == "history":
+        history = manager.get_history(args.session_id, limit=args.limit)
+        if history:
+            print(f"📜 会话历史 ({len(history)} 条):\n")
+            role_names = {"user": "👤", "assistant": "🤖", "system": "⚙️", "tool": "🔧"}
+            for msg in history:
+                role = role_names.get(msg["role"], "?")
+                print(f"  {role} [{msg['timestamp'][:19]}]")
+                print(f"    {msg['content'][:100]}")
+                print()
+        else:
+            print(f"📭 会话 {args.session_id} 没有消息")
+    
+    elif args.session_action == "context":
+        context = manager.get_context(args.session_id, max_messages=args.max)
+        if context:
+            print(f"📝 上下文 ({len(context)} 条):\n")
+            for msg in context:
+                print(f"[{msg['role']}] {msg['content'][:100]}")
+        else:
+            print(f"📭 会话 {args.session_id} 没有上下文")
+    
+    elif args.session_action == "search":
+        results = manager.search(args.query, limit=args.limit)
+        if results:
+            print(f"🔍 搜索结果 ({len(results)} 条):\n")
+            for r in results:
+                print(f"  会话: {r['session_name']} ({r['session_id']})")
+                print(f"    匹配: {r['match_content']}")
+                print()
+        else:
+            print(f"❌ 未找到包含 '{args.query}' 的会话")
+    
+    elif args.session_action == "export":
+        markdown = manager.export_markdown(args.session_id)
+        if markdown:
+            print(markdown)
+        else:
+            print(f"❌ 会话 {args.session_id} 不存在")
+    
+    elif args.session_action == "clean":
+        removed = manager.clean(days=args.days)
+        print(f"🧹 已清理 {removed} 个旧会话")
+    
+    elif args.session_action == "delete":
+        if manager.delete(args.session_id):
+            print(f"✅ 会话已删除: {args.session_id}")
+        else:
+            print(f"❌ 会话不存在: {args.session_id}")
+    
+    elif args.session_action == "use":
+        if manager.set_active(args.session_id):
+            print(f"✅ 活跃会话已设为: {args.session_id}")
+        else:
+            print(f"❌ 会话不存在: {args.session_id}")
+    
+    elif args.session_action == "stats":
+        stats = manager.get_stats()
+        print("📊 会话统计:\n")
+        print(f"  总会话数: {stats['total']}")
+        print(f"  总消息数: {stats['total_messages']}")
+        print(f"  活跃会话: {stats['active_session'] or '无'}")
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Claude Code Toolkit — 统一 CLI",
@@ -673,6 +770,61 @@ def main():
     test_parser = provider_subparsers.add_parser("test", help="测试连接")
     test_parser.add_argument("name", nargs="?", help="Provider 名称")
     
+    # ── session 命令 ──
+    session_parser = subparsers.add_parser("session", help="Session 管理")
+    session_subparsers = session_parser.add_subparsers(dest="session_action")
+    
+    # session create
+    create_parser = session_subparsers.add_parser("create", help="创建新会话")
+    create_parser.add_argument("--name", "-n", help="会话名称")
+    create_parser.add_argument("--id", help="会话 ID（可选）")
+    
+    # session list
+    list_parser = session_subparsers.add_parser("list", help="列出会话")
+    list_parser.add_argument("--limit", "-l", type=int, default=20, help="返回数量")
+    
+    # session add
+    add_parser = session_subparsers.add_parser("add", help="添加消息")
+    add_parser.add_argument("session_id", help="会话 ID")
+    add_parser.add_argument("--role", "-r", default="user",
+                            choices=["user", "assistant", "system", "tool"],
+                            help="角色")
+    add_parser.add_argument("--content", "-c", required=True, help="消息内容")
+    
+    # session history
+    history_parser = session_subparsers.add_parser("history", help="查看历史")
+    history_parser.add_argument("session_id", help="会话 ID")
+    history_parser.add_argument("--limit", "-l", type=int, default=50, help="返回数量")
+    
+    # session context
+    context_parser = session_subparsers.add_parser("context", help="获取上下文")
+    context_parser.add_argument("session_id", help="会话 ID")
+    context_parser.add_argument("--max", "-m", type=int, default=10, help="最大消息数")
+    
+    # session search
+    search_parser = session_subparsers.add_parser("search", help="搜索会话")
+    search_parser.add_argument("query", help="搜索关键词")
+    search_parser.add_argument("--limit", "-l", type=int, default=10, help="返回数量")
+    
+    # session export
+    export_parser = session_subparsers.add_parser("export", help="导出会话")
+    export_parser.add_argument("session_id", help="会话 ID")
+    
+    # session clean
+    clean_parser = session_subparsers.add_parser("clean", help="清理旧会话")
+    clean_parser.add_argument("--days", "-d", type=int, default=7, help="保留天数")
+    
+    # session delete
+    delete_parser = session_subparsers.add_parser("delete", help="删除会话")
+    delete_parser.add_argument("session_id", help="会话 ID")
+    
+    # session use
+    use_parser = session_subparsers.add_parser("use", help="设置活跃会话")
+    use_parser.add_argument("session_id", help="会话 ID")
+    
+    # session stats
+    session_subparsers.add_parser("stats", help="查看统计")
+    
     args = parser.parse_args()
     
     if args.command == "memory":
@@ -691,6 +843,8 @@ def main():
         cmd_openclaude(args)
     elif args.command == "provider":
         cmd_provider(args)
+    elif args.command == "session":
+        cmd_session(args)
     else:
         parser.print_help()
 
